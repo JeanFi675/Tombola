@@ -15,43 +15,76 @@ function dayLabel(day: 'samedi' | 'dimanche') {
   return day === 'samedi' ? 'Samedi 16 mai' : 'Dimanche 17 mai';
 }
 
-function dayColors(day: 'samedi' | 'dimanche' | null) {
-  if (day === 'samedi') return { badge: 'bg-blue-600 text-white', btn: 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800', light: 'bg-blue-50 border-blue-200 text-blue-800' };
-  if (day === 'dimanche') return { badge: 'bg-yellow-400 text-slate-900', btn: 'bg-yellow-400 hover:bg-yellow-500 active:bg-yellow-600 text-slate-900', light: 'bg-yellow-50 border-yellow-200 text-yellow-800' };
-  return { badge: 'bg-slate-600 text-white', btn: 'bg-slate-600 hover:bg-slate-700', light: 'bg-slate-50 border-slate-200 text-slate-800' };
+type DayColors = {
+  badge: string;
+  btn: string;
+  cardBg: string;
+  cardText: string;
+  progressFill: string;
+};
+
+function dayColors(day: 'samedi' | 'dimanche' | null): DayColors {
+  if (day === 'samedi') return {
+    badge: 'bg-ice border-2 border-black text-black',
+    btn: 'bg-ice text-black shadow-[6px_6px_0px_#000000]',
+    cardBg: 'bg-ice',
+    cardText: 'text-black',
+    progressFill: 'bg-ice',
+  };
+  if (day === 'dimanche') return {
+    badge: 'bg-black border-2 border-black text-white',
+    btn: 'bg-black text-white shadow-[6px_6px_0px_#8bbfd5]',
+    cardBg: 'bg-black',
+    cardText: 'text-white',
+    progressFill: 'bg-black',
+  };
+  return {
+    badge: 'bg-white border-2 border-black text-black',
+    btn: 'bg-white text-black shadow-[6px_6px_0px_#000000]',
+    cardBg: 'bg-white',
+    cardText: 'text-black',
+    progressFill: 'bg-black',
+  };
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function DaySelection({ onSelect, loading }: { onSelect: (day: 'samedi' | 'dimanche') => void; loading: boolean }) {
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md text-center">
-        <div className="text-5xl mb-4">🧗</div>
-        <h1 className="text-2xl font-bold text-slate-800 mb-2">Tombola Escalade</h1>
-        <p className="text-slate-500 mb-8">Choisissez la journée à initialiser</p>
+    <div className="min-h-screen bg-white flex items-center justify-center p-6">
+      <div className="border-2 border-black shadow-[6px_6px_0px_#000000] bg-white p-8 w-full max-w-md">
+        <h1 className="font-title text-4xl font-black text-black uppercase leading-tight tracking-tight mb-2">
+          Tombola<br />Escalade
+        </h1>
+        <div className="border-l-4 border-ice pl-3 mb-8">
+          <p className="text-black text-sm font-medium">Choisissez la journée à initialiser</p>
+        </div>
 
         <div className="space-y-4">
           <button
             onClick={() => onSelect('samedi')}
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-bold py-5 rounded-xl text-xl transition-colors"
+            className="w-full bg-ice border-2 border-black shadow-[4px_4px_0px_#000000] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] disabled:opacity-50 disabled:cursor-not-allowed text-black font-black py-5 text-xl transition-all uppercase"
           >
             Samedi 16 mai
-            <span className="block text-sm font-normal opacity-80 mt-1">63 lots · ~1 837 €</span>
+            <span className="block text-sm font-normal mt-1">63 lots · ~1 837 €</span>
           </button>
 
           <button
             onClick={() => onSelect('dimanche')}
             disabled={loading}
-            className="w-full bg-yellow-400 hover:bg-yellow-500 active:bg-yellow-600 disabled:opacity-50 text-slate-900 font-bold py-5 rounded-xl text-xl transition-colors"
+            className="w-full bg-black border-2 border-black shadow-[4px_4px_0px_#8bbfd5] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] disabled:opacity-50 disabled:cursor-not-allowed text-white font-black py-5 text-xl transition-all uppercase"
           >
             Dimanche 17 mai
-            <span className="block text-sm font-normal opacity-60 mt-1">58 lots · ~1 832 €</span>
+            <span className="block text-sm font-normal mt-1 opacity-60">58 lots · ~1 832 €</span>
           </button>
         </div>
 
-        {loading && <p className="text-slate-400 mt-4 text-sm">Chargement des lots depuis NocoDB…</p>}
+        {loading && (
+          <p className="text-black text-sm mt-4 border-l-4 border-ice pl-3">
+            Chargement des lots depuis NocoDB…
+          </p>
+        )}
       </div>
     </div>
   );
@@ -66,26 +99,25 @@ function PendingCard({
   ticket: Ticket;
   onCollect: () => void;
   loading: boolean;
-  colors: ReturnType<typeof dayColors>;
+  colors: DayColors;
 }) {
   return (
-    <div className={`rounded-2xl border-2 p-6 ${colors.light} mb-6`}>
+    <div className={`border-2 border-black shadow-[4px_4px_0px_#000000] p-6 mb-6 ${colors.cardBg} ${colors.cardText}`}>
       <div className="flex items-center justify-between mb-4">
-        <span className="text-sm font-medium opacity-70">Numéro tiré</span>
-        <span className="text-4xl font-black">#{ticket.number}</span>
+        <span className="text-xs font-black uppercase tracking-widest opacity-60">Numéro tiré</span>
+        <span className="font-title text-5xl font-black">#{ticket.number}</span>
       </div>
 
-      <h2 className="text-2xl font-bold mb-1">{ticket.description}</h2>
-      <p className="text-lg opacity-80 mb-1">{ticket.annonceur}</p>
-      <p className="text-2xl font-bold">{fmt(ticket.valeur)}</p>
+      <h2 className="font-title text-2xl font-black mb-1 leading-tight">{ticket.description}</h2>
+      <p className="text-lg opacity-70 mb-1">{ticket.annonceur}</p>
+      <p className="font-title text-2xl font-black">{fmt(ticket.valeur)}</p>
 
       <button
         onClick={onCollect}
         disabled={loading}
-        className="mt-6 w-full bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:opacity-50 text-white font-bold py-4 rounded-xl text-lg transition-colors flex items-center justify-center gap-2"
+        className="mt-6 w-full bg-black border-2 border-black shadow-[4px_4px_0px_#8bbfd5] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] disabled:opacity-50 disabled:cursor-not-allowed text-white font-black py-4 text-lg transition-all uppercase tracking-wide"
       >
-        <span>✓</span>
-        {loading ? 'Confirmation…' : 'Lot remis au gagnant'}
+        {loading ? 'Confirmation…' : '✓ Lot remis au gagnant'}
       </button>
     </div>
   );
@@ -100,24 +132,29 @@ function DrawButton({
 }: {
   disabled: boolean;
   loading: boolean;
-  colors: ReturnType<typeof dayColors>;
+  colors: DayColors;
   remaining: number;
   onDraw: () => void;
 }) {
+  const isDisabled = disabled || loading || remaining === 0;
   return (
     <button
       onClick={onDraw}
-      disabled={disabled || loading || remaining === 0}
-      className={`w-full font-black py-8 rounded-2xl text-3xl transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg ${colors.btn}`}
+      disabled={isDisabled}
+      className={`w-full font-title font-black py-8 text-3xl border-2 border-black transition-all uppercase tracking-wide
+        ${isDisabled
+          ? 'opacity-30 cursor-not-allowed shadow-none'
+          : `${colors.btn} hover:shadow-none hover:translate-x-[6px] hover:translate-y-[6px]`
+        }`}
     >
       {loading ? (
-        <span className="animate-pulse">Tirage…</span>
+        <span>Tirage…</span>
       ) : remaining === 0 ? (
         <span>Tous les lots sont tirés !</span>
       ) : (
         <>
-          🎲 TIRER UN NUMÉRO
-          <span className="block text-base font-normal mt-1 opacity-80">
+          TIRER UN NUMÉRO
+          <span className="block text-base font-normal mt-1 opacity-70">
             {remaining} lot{remaining > 1 ? 's' : ''} disponible{remaining > 1 ? 's' : ''}
           </span>
         </>
@@ -128,7 +165,6 @@ function DrawButton({
 
 function HistoryList({ tickets }: { tickets: Ticket[] }) {
   const drawn = [...tickets].filter(t => t.drawn).sort((a, b) => {
-    // Les non collectés en premier
     if (!a.collected && b.collected) return -1;
     if (a.collected && !b.collected) return 1;
     return (b.drawnAt ?? '').localeCompare(a.drawnAt ?? '');
@@ -138,28 +174,28 @@ function HistoryList({ tickets }: { tickets: Ticket[] }) {
 
   return (
     <div className="mt-6">
-      <h3 className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-3">
+      <h3 className="text-black text-xs font-black uppercase tracking-widest mb-3 border-b-2 border-black pb-2">
         Lots tirés ({drawn.length})
       </h3>
       <div className="space-y-2">
         {drawn.map(t => (
           <div
             key={t.number}
-            className={`flex items-center gap-3 rounded-xl px-4 py-3 ${
-              t.collected ? 'bg-slate-800' : 'bg-orange-900/40 border border-orange-600'
+            className={`flex items-center gap-3 border-2 border-black px-4 py-3 ${
+              t.collected ? 'bg-white' : 'bg-ice'
             }`}
           >
-            <span className={`text-lg font-mono font-bold ${t.collected ? 'text-slate-400' : 'text-orange-400'}`}>
+            <span className="text-lg font-mono font-black text-black">
               #{t.number}
             </span>
             <div className="flex-1 min-w-0">
-              <p className={`font-medium truncate ${t.collected ? 'text-slate-400' : 'text-white'}`}>
+              <p className={`font-bold truncate text-black ${t.collected ? 'opacity-40' : ''}`}>
                 {t.description}
               </p>
-              <p className="text-slate-500 text-sm truncate">{t.annonceur} · {fmt(t.valeur)}</p>
+              <p className="text-black text-sm truncate opacity-50">{t.annonceur} · {fmt(t.valeur)}</p>
             </div>
-            <span className={`text-sm font-medium shrink-0 ${t.collected ? 'text-green-500' : 'text-orange-400'}`}>
-              {t.collected ? '✓ Remis' : '⏳ En attente'}
+            <span className={`text-xs font-black shrink-0 uppercase tracking-wide ${t.collected ? 'text-black opacity-40' : 'text-black'}`}>
+              {t.collected ? '✓ Remis' : '⏳ Attente'}
             </span>
           </div>
         ))}
@@ -176,7 +212,6 @@ export default function TiragePage() {
   const [error, setError] = useState('');
   const router = useRouter();
 
-  // Vérification auth côté client au montage
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/');
@@ -246,8 +281,8 @@ export default function TiragePage() {
   // ── Loading ──
   if (!state) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-slate-400 text-lg">
-        Chargement…
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-black font-black uppercase tracking-widest text-sm">Chargement…</p>
       </div>
     );
   }
@@ -267,32 +302,31 @@ export default function TiragePage() {
   const allDone = remaining === 0 && state.pendingNumber === null;
 
   return (
-    <div className="min-h-screen p-4 pb-8 max-w-lg mx-auto">
+    <div className="min-h-screen bg-white p-4 pb-8 max-w-lg mx-auto">
+
       {/* Header */}
       <div className="flex items-center justify-between py-4 mb-4">
-        <div className="flex items-center gap-2">
-          <span className={`text-sm font-bold px-3 py-1 rounded-full ${colors.badge}`}>
-            {state.day && dayLabel(state.day)}
-          </span>
-        </div>
+        <span className={`text-sm font-black px-3 py-1 uppercase tracking-wide ${colors.badge}`}>
+          {state.day && dayLabel(state.day)}
+        </span>
         <div className="text-right">
-          <span className="text-white font-bold text-lg">{drawn}</span>
-          <span className="text-slate-400 text-sm"> / {total} tirés</span>
+          <span className="font-title font-black text-black text-lg">{drawn}</span>
+          <span className="text-black opacity-40 text-sm"> / {total} tirés</span>
         </div>
       </div>
 
       {/* Progress bar */}
-      <div className="w-full bg-slate-700 rounded-full h-2 mb-6">
+      <div className="w-full bg-white border-2 border-black h-3 mb-6">
         <div
-          className="h-2 rounded-full transition-all duration-500 bg-green-500"
+          className={`h-full transition-all duration-500 ${colors.progressFill}`}
           style={{ width: total > 0 ? `${(drawn / total) * 100}%` : '0%' }}
         />
       </div>
 
       {/* Error */}
       {error && (
-        <div className="bg-red-900/50 border border-red-600 text-red-300 rounded-xl px-4 py-3 mb-4 text-sm">
-          {error}
+        <div className="border-2 border-black bg-ice px-4 py-3 mb-4">
+          <p className="text-black text-sm font-bold">{error}</p>
         </div>
       )}
 
@@ -319,10 +353,11 @@ export default function TiragePage() {
 
       {/* Message de fin */}
       {allDone && (
-        <div className="bg-green-900/40 border border-green-600 rounded-2xl p-8 text-center">
-          <div className="text-5xl mb-4">🎉</div>
-          <h2 className="text-2xl font-bold text-green-400 mb-2">Tirage terminé !</h2>
-          <p className="text-slate-400">Tous les lots ont été distribués.</p>
+        <div className="border-2 border-black bg-ice p-8 text-center">
+          <h2 className="font-title text-3xl font-black text-black uppercase tracking-tight mb-2">
+            Tirage terminé !
+          </h2>
+          <p className="text-black opacity-60 font-medium">Tous les lots ont été distribués.</p>
         </div>
       )}
 
@@ -330,10 +365,10 @@ export default function TiragePage() {
       <HistoryList tickets={state.tickets} />
 
       {/* Reset */}
-      <div className="mt-8 pt-6 border-t border-slate-700">
+      <div className="mt-8 pt-6 border-t-2 border-black">
         <button
           onClick={handleReset}
-          className="text-slate-500 hover:text-red-400 text-sm transition-colors"
+          className="text-black opacity-30 hover:opacity-100 text-sm font-bold uppercase tracking-wider transition-opacity"
         >
           Réinitialiser le tirage
         </button>

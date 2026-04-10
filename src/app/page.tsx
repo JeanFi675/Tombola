@@ -24,26 +24,30 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-3">🧗</div>
-          <h1 className="text-2xl font-bold text-slate-800">Tombola Escalade</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Championnats de France — Difficulté Jeunes
-          </p>
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+      <div className="border-2 border-black shadow-[6px_6px_0px_#000000] bg-white p-8 w-full max-w-sm">
+
+        <div className="mb-8">
+          <h1 className="font-title text-4xl font-black text-black uppercase leading-tight tracking-tight">
+            Tombola<br />Escalade
+          </h1>
+          <div className="mt-3 border-l-4 border-ice pl-3">
+            <p className="text-black text-sm font-medium">
+              Championnats de France<br />Difficulté Jeunes
+            </p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label className="block text-xs font-black text-black mb-2 uppercase tracking-widest">
               Mot de passe bénévole
             </label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full border border-slate-300 rounded-xl px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border-2 border-black px-4 py-3 text-lg focus:outline-none focus:border-ice bg-white font-sans transition-colors"
               placeholder="••••••••"
               autoFocus
               required
@@ -51,15 +55,15 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <p className="bg-red-50 text-red-700 text-sm rounded-lg px-4 py-2 text-center">
-              {error}
-            </p>
+            <div className="border-2 border-black bg-ice px-4 py-2 text-center">
+              <p className="text-black text-sm font-bold">{error}</p>
+            </div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-blue-300 text-white font-bold py-4 rounded-xl text-lg transition-colors"
+            className="w-full bg-ice border-2 border-black shadow-[4px_4px_0px_#000000] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] disabled:opacity-50 disabled:cursor-not-allowed text-black font-black py-4 text-lg transition-all uppercase tracking-wider"
           >
             {loading ? 'Connexion…' : 'Accéder'}
           </button>
