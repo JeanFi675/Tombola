@@ -44,6 +44,7 @@ jobs:
           NEXT_PUBLIC_NOCODB_URL: ${{ secrets.NOCODB_URL }}
           NEXT_PUBLIC_NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
           NEXT_PUBLIC_NOCODB_TABLE_ID: ${{ secrets.NOCODB_TABLE_ID }}
+          NEXT_PUBLIC_NOCODB_TIRAGE_TABLE_ID: ${{ secrets.NOCODB_TIRAGE_TABLE_ID }}
           # Préfixe automatique basé sur le nom du repo (ex: /Tombola)
           # Mettre BASE_PATH="" comme secret si tu utilises un domaine custom
           NEXT_PUBLIC_BASE_PATH: ${{ secrets.BASE_PATH || format('/{0}', github.event.repository.name) }}

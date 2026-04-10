@@ -1,9 +1,12 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { isAuthenticated } from '@/lib/auth';
-import { loadState, saveState, resetState, buildTickets, type DrawState, type Ticket } from '@/lib/storage';
-import { fetchLots } from '@/lib/nocodb';
+import { buildTickets, fromTirageTickets, sessionKey, type DrawState, type Ticket } from '@/lib/storage';
+import { fetchLots, fetchTirageSession, insertTirageTickets, updateTirageTicket, clearTirageSession } from '@/lib/nocodb';
+
+const POLL_MS = 4000;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -57,7 +60,7 @@ function DaySelection({ onSelect, loading }: { onSelect: (day: 'samedi' | 'diman
           Tombola<br />Escalade
         </h1>
         <div className="border-l-4 border-ice pl-3 mb-8">
-          <p className="text-black text-sm font-medium">Choisissez la journée à initialiser</p>
+          <p className="text-black text-sm font-medium">Choisissez la journée</p>
         </div>
 
         <div className="space-y-4">
@@ -82,7 +85,7 @@ function DaySelection({ onSelect, loading }: { onSelect: (day: 'samedi' | 'diman
 
         {loading && (
           <p className="text-black text-sm mt-4 border-l-4 border-ice pl-3">
-            Chargement des lots depuis NocoDB…
+            Chargement…
           </p>
         )}
       </div>
@@ -93,11 +96,13 @@ function DaySelection({ onSelect, loading }: { onSelect: (day: 'samedi' | 'diman
 function PendingCard({
   ticket,
   onCollect,
+  onUndo,
   loading,
   colors,
 }: {
   ticket: Ticket;
   onCollect: () => void;
+  onUndo: () => void;
   loading: boolean;
   colors: DayColors;
 }) {
@@ -118,6 +123,13 @@ function PendingCard({
         className="mt-6 w-full bg-black border-2 border-black shadow-[4px_4px_0px_#8bbfd5] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] disabled:opacity-50 disabled:cursor-not-allowed text-white font-black py-4 text-lg transition-all uppercase tracking-wide"
       >
         {loading ? 'Confirmation…' : '✓ Lot remis au gagnant'}
+      </button>
+      <button
+        onClick={onUndo}
+        disabled={loading}
+        className="mt-4 w-full text-center text-xs opacity-20 hover:opacity-60 transition-opacity text-black disabled:cursor-not-allowed"
+      >
+        erreur de clic
       </button>
     </div>
   );
@@ -211,71 +223,130 @@ export default function TiragePage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/');
-      return;
+    } else {
+      setState({ day: null, initialized: false, pendingNumber: null, tickets: [] });
     }
-    setState(loadState());
   }, [router]);
 
-  const refresh = useCallback(() => {
-    setState(loadState());
+  const refreshState = useCallback(async (day: 'samedi' | 'dimanche') => {
+    const tickets = await fetchTirageSession(sessionKey(day));
+    setState(fromTirageTickets(tickets, day));
   }, []);
 
-  async function handleInit(day: 'samedi' | 'dimanche') {
+  // Polling toutes les POLL_MS ms pour synchroniser les appareils
+  useEffect(() => {
+    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+    if (!state?.initialized || !state.day) return;
+    const day = state.day;
+    pollingRef.current = setInterval(async () => {
+      try { await refreshState(day); } catch { /* ignore silently */ }
+    }, POLL_MS);
+    return () => { if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; } };
+  }, [state?.initialized, state?.day, refreshState]);
+
+  // Sélection du jour : charge la session existante si elle existe
+  async function handleSelectDay(day: 'samedi' | 'dimanche') {
     setActionLoading(true);
     setError('');
     try {
-      const lots = await fetchLots();
-      const tickets = buildTickets(lots, day);
-      const newState: DrawState = { day, initialized: true, pendingNumber: null, tickets };
-      saveState(newState);
-      refresh();
+      const tirageTickets = await fetchTirageSession(sessionKey(day));
+      if (tirageTickets.length > 0) {
+        setState(fromTirageTickets(tirageTickets, day));
+      } else {
+        // Pas encore de session → affiche l'écran d'initialisation
+        setState({ day, initialized: false, pendingNumber: null, tickets: [] });
+      }
     } catch (e) {
-      setError(`Erreur chargement NocoDB : ${e}`);
+      setError(`Erreur NocoDB : ${e}`);
     } finally {
       setActionLoading(false);
     }
   }
 
-  function handleDraw() {
-    if (!state) return;
+  // Initialisation explicite : lit Tombola_Lots et crée les tickets dans NocoDB
+  async function handleCreateSession() {
+    if (!state?.day) return;
+    setActionLoading(true);
+    setError('');
+    try {
+      const lots = await fetchLots();
+      const tickets = buildTickets(lots, state.day);
+      await insertTirageTickets(tickets);
+      const tirageTickets = await fetchTirageSession(sessionKey(state.day));
+      setState(fromTirageTickets(tirageTickets, state.day));
+    } catch (e) {
+      setError(`Erreur initialisation : ${e}`);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleDraw() {
+    if (!state?.day) return;
     const remaining = state.tickets.filter(t => !t.drawn);
     if (remaining.length === 0 || state.pendingNumber !== null) return;
 
     const winner = remaining[Math.floor(Math.random() * remaining.length)];
-    const now = new Date().toISOString();
-    const next: DrawState = {
-      ...state,
-      pendingNumber: winner.number,
-      tickets: state.tickets.map(t =>
-        t.number === winner.number ? { ...t, drawn: true, drawnAt: now } : t
-      ),
-    };
-    saveState(next);
-    setState(next);
+    setActionLoading(true);
+    try {
+      await updateTirageTicket(winner.nocoId, { Drawn: true, Drawn_At: new Date().toISOString() });
+      await refreshState(state.day);
+    } catch (e) {
+      setError(`Erreur tirage : ${e}`);
+    } finally {
+      setActionLoading(false);
+    }
   }
 
-  function handleCollect(number: number) {
-    if (!state) return;
-    const now = new Date().toISOString();
-    const next: DrawState = {
-      ...state,
-      pendingNumber: state.pendingNumber === number ? null : state.pendingNumber,
-      tickets: state.tickets.map(t =>
-        t.number === number ? { ...t, collected: true, collectedAt: now } : t
-      ),
-    };
-    saveState(next);
-    setState(next);
+  async function handleUndo(number: number) {
+    if (!state?.day) return;
+    const ticket = state.tickets.find(t => t.number === number);
+    if (!ticket) return;
+    setActionLoading(true);
+    try {
+      await updateTirageTicket(ticket.nocoId, { Drawn: false, Drawn_At: null });
+      await refreshState(state.day);
+    } catch (e) {
+      setError(`Erreur : ${e}`);
+    } finally {
+      setActionLoading(false);
+    }
   }
 
-  function handleReset() {
+  async function handleCollect(number: number) {
+    if (!state?.day) return;
+    const ticket = state.tickets.find(t => t.number === number);
+    if (!ticket) return;
+
+    setActionLoading(true);
+    try {
+      await updateTirageTicket(ticket.nocoId, { Collected: true });
+      await refreshState(state.day);
+    } catch (e) {
+      setError(`Erreur confirmation : ${e}`);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleReset() {
     if (!confirm('Remettre à zéro tout le tirage ? Cette action est irréversible.')) return;
-    resetState();
-    setState(loadState());
+    if (!state?.day) return;
+
+    setActionLoading(true);
+    try {
+      await clearTirageSession(sessionKey(state.day));
+      setState({ day: null, initialized: false, pendingNumber: null, tickets: [] });
+    } catch (e) {
+      setError(`Erreur réinitialisation : ${e}`);
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   // ── Loading ──
@@ -288,8 +359,47 @@ export default function TiragePage() {
   }
 
   // ── Sélection du jour ──
+  if (!state.day) {
+    return <DaySelection onSelect={handleSelectDay} loading={actionLoading} />;
+  }
+
+  // ── Session inexistante : proposer l'initialisation ──
   if (!state.initialized) {
-    return <DaySelection onSelect={handleInit} loading={actionLoading} />;
+    const dayLabel2 = state.day === 'samedi' ? 'Samedi 16 mai' : 'Dimanche 17 mai';
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+        <div className="border-2 border-black shadow-[6px_6px_0px_#000000] bg-white p-8 w-full max-w-md">
+          <span className={`inline-block text-sm font-black px-3 py-1 uppercase tracking-wide mb-6 ${state.day === 'samedi' ? 'bg-ice border-2 border-black text-black' : 'bg-black border-2 border-black text-white'}`}>
+            {dayLabel2}
+          </span>
+          <h2 className="font-title text-2xl font-black text-black uppercase tracking-tight mb-2">
+            Aucun tirage<br />initialisé
+          </h2>
+          <p className="text-black text-sm opacity-60 mb-8">
+            Cliquez sur le bouton ci-dessous pour lire les lots depuis NocoDB et créer la session de tirage.
+          </p>
+          {error && (
+            <div className="border-2 border-black bg-ice px-4 py-3 mb-4">
+              <p className="text-black text-sm font-bold">{error}</p>
+            </div>
+          )}
+          <button
+            onClick={handleCreateSession}
+            disabled={actionLoading}
+            className="w-full bg-black text-white font-black py-5 text-xl border-2 border-black shadow-[4px_4px_0px_#8bbfd5] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-wide"
+          >
+            {actionLoading ? 'Création en cours…' : '▶ Initialiser le tirage'}
+          </button>
+          <button
+            onClick={() => setState({ day: null, initialized: false, pendingNumber: null, tickets: [] })}
+            disabled={actionLoading}
+            className="mt-4 w-full text-black opacity-40 hover:opacity-100 text-sm font-bold uppercase tracking-wider transition-opacity"
+          >
+            ← Changer de journée
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const colors = dayColors(state.day);
@@ -335,6 +445,7 @@ export default function TiragePage() {
         <PendingCard
           ticket={pendingTicket}
           onCollect={() => handleCollect(pendingTicket.number)}
+          onUndo={() => handleUndo(pendingTicket.number)}
           loading={actionLoading}
           colors={colors}
         />
@@ -364,14 +475,21 @@ export default function TiragePage() {
       {/* Historique */}
       <HistoryList tickets={state.tickets} />
 
-      {/* Reset */}
-      <div className="mt-8 pt-6 border-t-2 border-black">
+      {/* Bas de page */}
+      <div className="mt-8 pt-6 border-t-2 border-black space-y-3">
         <button
           onClick={handleReset}
-          className="text-black opacity-30 hover:opacity-100 text-sm font-bold uppercase tracking-wider transition-opacity"
+          disabled={actionLoading}
+          className="w-full border-2 border-black bg-white text-black font-black py-3 text-sm uppercase tracking-wide shadow-[4px_4px_0px_#000000] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
         >
-          Réinitialiser le tirage
+          ↺ Réinitialiser le tirage
         </button>
+        <Link
+          href="/liste-lots"
+          className="block text-center text-black opacity-40 hover:opacity-100 text-sm font-bold uppercase tracking-wider transition-opacity"
+        >
+          Liste des lots →
+        </Link>
       </div>
     </div>
   );

@@ -1,8 +1,7 @@
-import type { Lot } from './nocodb';
-
-const STATE_KEY = 'tombola_draw_state';
+import type { Lot, TirageTicket } from './nocodb';
 
 export interface Ticket {
+  nocoId: number;
   number: number;
   lotId: number;
   description: string;
@@ -11,7 +10,6 @@ export interface Ticket {
   drawn: boolean;
   drawnAt: string | null;
   collected: boolean;
-  collectedAt: string | null;
 }
 
 export interface DrawState {
@@ -21,56 +19,80 @@ export interface DrawState {
   tickets: Ticket[];
 }
 
-const DEFAULT: DrawState = {
-  day: null,
-  initialized: false,
-  pendingNumber: null,
-  tickets: [],
-};
-
-export function loadState(): DrawState {
-  if (typeof window === 'undefined') return { ...DEFAULT };
-  try {
-    const raw = localStorage.getItem(STATE_KEY);
-    return raw ? (JSON.parse(raw) as DrawState) : { ...DEFAULT };
-  } catch {
-    return { ...DEFAULT };
-  }
-}
-
-export function saveState(state: DrawState): void {
-  localStorage.setItem(STATE_KEY, JSON.stringify(state));
-}
-
-export function resetState(): void {
-  localStorage.removeItem(STATE_KEY);
+export function sessionKey(day: 'samedi' | 'dimanche'): string {
+  return `escalade2026_${day}`;
 }
 
 /** Génère les tickets numérotés à partir des lots NocoDB pour le jour choisi. */
-export function buildTickets(lots: Lot[], day: 'samedi' | 'dimanche'): Ticket[] {
-  const tickets: Ticket[] = [];
+export function buildTickets(lots: Lot[], day: 'samedi' | 'dimanche'): Omit<TirageTicket, 'Id'>[] {
   let number = 1;
+
+  // Total de valeur donné par chaque annonceur pour ce jour
+  const annonceurTotaux = new Map<string, number>();
+  for (const l of lots) {
+    const qty = day === 'samedi' ? l.Nb_Samedi : l.Nb_Dimanche;
+    if (qty <= 0) continue;
+    const titre = l.Annonceur?.Titre ?? 'Annonceur inconnu';
+    annonceurTotaux.set(titre, (annonceurTotaux.get(titre) ?? 0) + l.Valeur_Unitaire * qty);
+  }
 
   const filtered = lots
     .filter(l => (day === 'samedi' ? l.Nb_Samedi : l.Nb_Dimanche) > 0)
-    .sort((a, b) => a.Valeur_Unitaire - b.Valeur_Unitaire);
+    .sort((a, b) => {
+      const titreA = a.Annonceur?.Titre ?? 'Annonceur inconnu';
+      const titreB = b.Annonceur?.Titre ?? 'Annonceur inconnu';
+      const totalA = annonceurTotaux.get(titreA) ?? 0;
+      const totalB = annonceurTotaux.get(titreB) ?? 0;
+      if (totalB !== totalA) return totalB - totalA; // annonceur le plus généreux en premier
+      return b.Valeur_Unitaire - a.Valeur_Unitaire;  // puis lot le plus cher en premier
+    });
+
+  const session = sessionKey(day);
+  const result: Omit<TirageTicket, 'Id'>[] = [];
 
   for (const lot of filtered) {
     const qty = day === 'samedi' ? lot.Nb_Samedi : lot.Nb_Dimanche;
     const annonceur = lot.Annonceur?.Titre ?? 'Annonceur inconnu';
     for (let i = 0; i < qty; i++) {
-      tickets.push({
-        number: number++,
-        lotId: lot.Id,
-        description: lot.Description,
-        annonceur,
-        valeur: lot.Valeur_Unitaire,
-        drawn: false,
-        drawnAt: null,
-        collected: false,
-        collectedAt: null,
+      result.push({
+        Numero: number++,
+        Lot_id: lot.Id,
+        Description: lot.Description,
+        Annonceur: annonceur,
+        Valeur: lot.Valeur_Unitaire,
+        Jour: day,
+        Session: session,
+        Drawn: false,
+        Drawn_At: null,
+        Collected: false,
       });
     }
   }
-  return tickets;
+  return result;
+}
+
+/** Convertit les enregistrements NocoDB en DrawState pour l'UI. */
+export function fromTirageTickets(tirageTickets: TirageTicket[], day: 'samedi' | 'dimanche'): DrawState {
+  const tickets: Ticket[] = tirageTickets
+    .sort((a, b) => a.Numero - b.Numero)
+    .map(t => ({
+      nocoId: t.Id!,
+      number: t.Numero,
+      lotId: t.Lot_id,
+      description: t.Description,
+      annonceur: t.Annonceur,
+      valeur: t.Valeur,
+      drawn: t.Drawn,
+      drawnAt: t.Drawn_At,
+      collected: t.Collected,
+    }));
+
+  const pending = tickets.find(t => t.drawn && !t.collected);
+
+  return {
+    day,
+    initialized: true,
+    pendingNumber: pending?.number ?? null,
+    tickets,
+  };
 }
