@@ -44,12 +44,7 @@ function groupByLot(tickets: TirageTicket[]): LotGroup[] {
     annonceurTotaux.set(g.annonceur, (annonceurTotaux.get(g.annonceur) ?? 0) + g.valeur * g.numeros.length);
   }
 
-  return groups.sort((a, b) => {
-    const totalA = annonceurTotaux.get(a.annonceur) ?? 0;
-    const totalB = annonceurTotaux.get(b.annonceur) ?? 0;
-    if (totalB !== totalA) return totalB - totalA; // annonceur le plus généreux en premier
-    return b.valeur - a.valeur;                    // puis lot le plus cher en premier
-  });
+  return groups.sort((a, b) => b.valeur - a.valeur); // lot le plus cher en premier
 }
 
 function formatNumeros(nums: number[]): string {
@@ -115,10 +110,10 @@ export default function ListeLotsPage() {
       {/* Header — masqué à l'impression */}
       <div className="print:hidden border-b-2 border-black px-4 py-4 flex items-center justify-between max-w-4xl mx-auto">
         <Link
-          href="/tirage"
+          href="/portail"
           className="text-black opacity-40 hover:opacity-100 text-sm font-bold uppercase tracking-wider transition-opacity"
         >
-          ← Retour au tirage
+          ← Portail
         </Link>
         <h1 className="font-title text-xl font-black uppercase tracking-tight text-black">
           Liste des lots
@@ -220,10 +215,11 @@ export default function ListeLotsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b-2 border-black bg-black text-white">
-                    <th className="text-left font-black uppercase tracking-widest text-xs px-4 py-3 w-[25%]">Annonceur</th>
-                    <th className="text-left font-black uppercase tracking-widest text-xs px-4 py-3 w-[40%]">Lot</th>
-                    <th className="text-right font-black uppercase tracking-widest text-xs px-4 py-3 w-[12%]">Valeur</th>
-                    <th className="text-right font-black uppercase tracking-widest text-xs px-4 py-3 w-[23%]">N° tickets</th>
+                    <th className="text-left font-black uppercase tracking-widest text-xs px-4 py-3 w-[23%]">Annonceur</th>
+                    <th className="text-left font-black uppercase tracking-widest text-xs px-4 py-3 w-[35%]">Lot</th>
+                    <th className="text-right font-black uppercase tracking-widest text-xs px-4 py-3 w-[10%]">Valeur</th>
+                    <th className="text-right font-black uppercase tracking-widest text-xs px-4 py-3 w-[8%]">Qté</th>
+                    <th className="text-right font-black uppercase tracking-widest text-xs px-4 py-3 w-[24%]">N° tickets</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -235,6 +231,7 @@ export default function ListeLotsPage() {
                       <td className="px-4 py-3 font-black text-black">{g.annonceur}</td>
                       <td className="px-4 py-3 text-black opacity-70">{g.description}</td>
                       <td className="px-4 py-3 text-right font-mono font-bold text-black">{fmt(g.valeur)}</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-black">{g.numeros.length}</td>
                       <td className="px-4 py-3 text-right font-mono text-black text-xs">{formatNumeros(g.numeros)}</td>
                     </tr>
                   ))}
