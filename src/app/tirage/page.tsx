@@ -52,7 +52,11 @@ function dayColors(day: 'samedi' | 'dimanche' | null): DayColors {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function DaySelection({ onSelect, loading }: { onSelect: (day: 'samedi' | 'dimanche') => void; loading: boolean }) {
+function DaySelection({ onSelect, loading, lotStats }: {
+  onSelect: (day: 'samedi' | 'dimanche') => void;
+  loading: boolean;
+  lotStats: { samedi: { count: number; value: number }; dimanche: { count: number; value: number } } | null;
+}) {
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-6">
       <div className="border-2 border-black shadow-[6px_6px_0px_#000000] bg-white p-8 w-full max-w-md">
@@ -70,7 +74,9 @@ function DaySelection({ onSelect, loading }: { onSelect: (day: 'samedi' | 'diman
             className="w-full bg-ice border-2 border-black shadow-[4px_4px_0px_#000000] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] disabled:opacity-50 disabled:cursor-not-allowed text-black font-black py-5 text-xl transition-all uppercase"
           >
             Samedi 16 mai
-            <span className="block text-sm font-normal mt-1">63 lots · ~1 837 €</span>
+            <span className="block text-sm font-normal mt-1">
+              {lotStats ? `${lotStats.samedi.count} lots · ~${Math.round(lotStats.samedi.value).toLocaleString('fr-FR')} €` : '…'}
+            </span>
           </button>
 
           <button
@@ -79,7 +85,9 @@ function DaySelection({ onSelect, loading }: { onSelect: (day: 'samedi' | 'diman
             className="w-full bg-black border-2 border-black shadow-[4px_4px_0px_#8bbfd5] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] disabled:opacity-50 disabled:cursor-not-allowed text-white font-black py-5 text-xl transition-all uppercase"
           >
             Dimanche 17 mai
-            <span className="block text-sm font-normal mt-1 opacity-60">58 lots · ~1 832 €</span>
+            <span className="block text-sm font-normal mt-1 opacity-60">
+              {lotStats ? `${lotStats.dimanche.count} lots · ~${Math.round(lotStats.dimanche.value).toLocaleString('fr-FR')} €` : '…'}
+            </span>
           </button>
         </div>
 
@@ -222,6 +230,10 @@ export default function TiragePage() {
   const [state, setState] = useState<DrawState | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
+  const [lotStats, setLotStats] = useState<{
+    samedi: { count: number; value: number };
+    dimanche: { count: number; value: number };
+  } | null>(null);
   const router = useRouter();
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -230,6 +242,13 @@ export default function TiragePage() {
       router.push('/');
     } else {
       setState({ day: null, initialized: false, pendingNumber: null, tickets: [] });
+      fetchLots().then(lots => {
+        const calc = (field: 'Nb_Samedi' | 'Nb_Dimanche') => ({
+          count: lots.reduce((s, l) => s + l[field], 0),
+          value: lots.reduce((s, l) => s + l[field] * l.Valeur_Unitaire, 0),
+        });
+        setLotStats({ samedi: calc('Nb_Samedi'), dimanche: calc('Nb_Dimanche') });
+      }).catch(() => { /* silencieux — les boutons affichent '…' */ });
     }
   }, [router]);
 
@@ -360,7 +379,7 @@ export default function TiragePage() {
 
   // ── Sélection du jour ──
   if (!state.day) {
-    return <DaySelection onSelect={handleSelectDay} loading={actionLoading} />;
+    return <DaySelection onSelect={handleSelectDay} loading={actionLoading} lotStats={lotStats} />;
   }
 
   // ── Session inexistante : proposer l'initialisation ──
