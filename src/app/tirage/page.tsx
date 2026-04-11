@@ -1,6 +1,6 @@
 'use client';
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { isAuthenticated } from '@/lib/auth';
 import { buildTickets, fromTirageTickets, sessionKey, type DrawState, type Ticket } from '@/lib/storage';
@@ -226,7 +226,7 @@ function HistoryList({ tickets }: { tickets: Ticket[] }) {
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
-export default function TiragePage() {
+function TiragePageInner() {
   const [state, setState] = useState<DrawState | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
@@ -235,22 +235,34 @@ export default function TiragePage() {
     dimanche: { count: number; value: number };
   } | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoSelectedRef = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/');
-    } else {
-      setState({ day: null, initialized: false, pendingNumber: null, tickets: [] });
-      fetchLots().then(lots => {
-        const calc = (field: 'Nb_Samedi' | 'Nb_Dimanche') => ({
-          count: lots.reduce((s, l) => s + l[field], 0),
-          value: lots.reduce((s, l) => s + l[field] * l.Valeur_Unitaire, 0),
-        });
-        setLotStats({ samedi: calc('Nb_Samedi'), dimanche: calc('Nb_Dimanche') });
-      }).catch(() => { /* silencieux — les boutons affichent '…' */ });
+      return;
     }
+    setState({ day: null, initialized: false, pendingNumber: null, tickets: [] });
+    fetchLots().then(lots => {
+      const calc = (field: 'Nb_Samedi' | 'Nb_Dimanche') => ({
+        count: lots.reduce((s, l) => s + l[field], 0),
+        value: lots.reduce((s, l) => s + l[field] * l.Valeur_Unitaire, 0),
+      });
+      setLotStats({ samedi: calc('Nb_Samedi'), dimanche: calc('Nb_Dimanche') });
+    }).catch(() => { /* silencieux — les boutons affichent '…' */ });
   }, [router]);
+
+  // Auto-sélection du jour depuis le paramètre URL ?jour=samedi|dimanche
+  useEffect(() => {
+    if (autoSelectedRef.current) return;
+    const jour = searchParams.get('jour');
+    if (jour !== 'samedi' && jour !== 'dimanche') return;
+    autoSelectedRef.current = true;
+    handleSelectDay(jour);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const refreshState = useCallback(async (day: 'samedi' | 'dimanche') => {
     const tickets = await fetchTirageSession(sessionKey(day));
@@ -409,13 +421,12 @@ export default function TiragePage() {
           >
             {actionLoading ? 'Création en cours…' : '▶ Initialiser le tirage'}
           </button>
-          <button
-            onClick={() => setState({ day: null, initialized: false, pendingNumber: null, tickets: [] })}
-            disabled={actionLoading}
-            className="mt-4 w-full text-black opacity-40 hover:opacity-100 text-sm font-bold uppercase tracking-wider transition-opacity"
+          <Link
+            href="/portail"
+            className="mt-4 block w-full text-center text-black opacity-40 hover:opacity-100 text-sm font-bold uppercase tracking-wider transition-opacity"
           >
-            ← Changer de journée
-          </button>
+            ← Retour au portail
+          </Link>
         </div>
       </div>
     );
@@ -503,13 +514,33 @@ export default function TiragePage() {
         >
           ↺ Réinitialiser le tirage
         </button>
-        <Link
-          href="/liste-lots"
-          className="block text-center text-black opacity-40 hover:opacity-100 text-sm font-bold uppercase tracking-wider transition-opacity"
-        >
-          Liste des lots →
-        </Link>
+        <div className="flex justify-between">
+          <Link
+            href="/portail"
+            className="text-black opacity-40 hover:opacity-100 text-sm font-bold uppercase tracking-wider transition-opacity"
+          >
+            ← Portail
+          </Link>
+          <Link
+            href="/liste-lots"
+            className="text-black opacity-40 hover:opacity-100 text-sm font-bold uppercase tracking-wider transition-opacity"
+          >
+            Liste des lots →
+          </Link>
+        </div>
       </div>
     </div>
+  );
+}
+
+export default function TiragePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-black font-black uppercase tracking-widest text-sm">Chargement…</p>
+      </div>
+    }>
+      <TiragePageInner />
+    </Suspense>
   );
 }

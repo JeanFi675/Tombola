@@ -16,7 +16,7 @@ export default function LoginPage() {
 
     const ok = await login(password);
     if (ok) {
-      router.push('/tirage');
+      router.push('/portail');
     } else {
       setError('Mot de passe incorrect');
       setLoading(false);

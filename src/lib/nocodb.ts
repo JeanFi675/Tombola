@@ -79,6 +79,42 @@ export async function updateTirageTicket(id: number, patch: Partial<TirageTicket
   if (!res.ok) throw new Error(`NocoDB update ${res.status}`);
 }
 
+// ─── Tombola_Regles ───────────────────────────────────────────────────────────
+
+const REGLES_TABLE_ID = 'm0jr27h7fzynhhu';
+
+function reglesUrl(path = '') {
+  const base = (process.env.NEXT_PUBLIC_NOCODB_URL ?? '').replace(/\/$/, '');
+  return `${base}/api/v2/tables/${REGLES_TABLE_ID}/records${path}`;
+}
+
+function reglesHeaders() {
+  return {
+    'xc-token': process.env.NEXT_PUBLIC_NOCODB_TOKEN ?? '',
+    'Content-Type': 'application/json',
+  };
+}
+
+export interface ReglesRecord {
+  Id: number;
+  Title: string;
+}
+
+export async function fetchRegles(): Promise<ReglesRecord | null> {
+  const res = await fetch(`${reglesUrl()}/1`, { headers: reglesHeaders() });
+  if (!res.ok) throw new Error(`NocoDB ${res.status}`);
+  return (await res.json()) as ReglesRecord;
+}
+
+export async function updateRegles(id: number, contenu: string): Promise<void> {
+  const res = await fetch(reglesUrl(), {
+    method: 'PATCH',
+    headers: reglesHeaders(),
+    body: JSON.stringify({ Id: id, Contenu: contenu }),
+  });
+  if (!res.ok) throw new Error(`NocoDB update ${res.status}`);
+}
+
 export async function clearTirageSession(session: string): Promise<void> {
   const tickets = await fetchTirageSession(session);
   if (tickets.length === 0) return;
