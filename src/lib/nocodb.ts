@@ -106,11 +106,26 @@ export async function fetchRegles(): Promise<ReglesRecord | null> {
   return (await res.json()) as ReglesRecord;
 }
 
+export async function fetchTutoriel(): Promise<ReglesRecord | null> {
+  const res = await fetch(`${reglesUrl()}/2`, { headers: reglesHeaders() });
+  if (!res.ok) throw new Error(`NocoDB ${res.status}`);
+  return (await res.json()) as ReglesRecord;
+}
+
 export async function updateRegles(id: number, contenu: string): Promise<void> {
   const res = await fetch(reglesUrl(), {
     method: 'PATCH',
     headers: reglesHeaders(),
-    body: JSON.stringify({ Id: id, Contenu: contenu }),
+    body: JSON.stringify({ Id: id, Title: contenu }),
+  });
+  if (!res.ok) throw new Error(`NocoDB update ${res.status}`);
+}
+
+export async function updateTutoriel(id: number, contenu: string): Promise<void> {
+  const res = await fetch(reglesUrl(), {
+    method: 'PATCH',
+    headers: reglesHeaders(),
+    body: JSON.stringify({ Id: id, Title: contenu }),
   });
   if (!res.ok) throw new Error(`NocoDB update ${res.status}`);
 }

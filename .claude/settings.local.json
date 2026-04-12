@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -H \"xc-token: yFA41TJLj1EZGHXVbCuV-fwqCNN5Xeu-CQOepvvM\" \"https://nocodb.jpcloudkit.fr/api/v2/meta/bases/p13x8zm9d2d1hps/tables\")",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); [print\\(t['id'], t['title']\\) for t in data.get\\('list',[]\\)]\")",
+      "Bash(curl -s -H \"xc-token: yFA41TJLj1EZGHXVbCuV-fwqCNN5Xeu-CQOepvvM\" \"https://nocodb.jpcloudkit.fr/api/v2/meta/tables/mm0pgifcf72rnoj\")",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); [print\\(c['title'], '-', c['uidt']\\) for c in data.get\\('columns',[]\\)]\")",
+      "Bash(curl -s -H \"xc-token: yFA41TJLj1EZGHXVbCuV-fwqCNN5Xeu-CQOepvvM\" \"https://nocodb.jpcloudkit.fr/api/v2/meta/tables/mpl1f2v0v5p163o\")",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

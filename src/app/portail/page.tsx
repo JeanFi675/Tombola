@@ -54,6 +54,13 @@ export default function PortailPage() {
           >
             Règles &amp; Informations
           </Link>
+
+          <Link
+            href="/tutoriel"
+            className="block w-full bg-white border-2 border-black shadow-[4px_4px_0px_#000000] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] text-black font-black py-4 text-lg transition-all uppercase text-center"
+          >
+            Tutoriel
+          </Link>
         </div>
       </div>
     </div>

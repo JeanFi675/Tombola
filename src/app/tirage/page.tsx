@@ -237,14 +237,13 @@ function TiragePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const autoSelectedRef = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/');
       return;
     }
-    setState({ day: null, initialized: false, pendingNumber: null, tickets: [] });
+
     fetchLots().then(lots => {
       const calc = (field: 'Nb_Samedi' | 'Nb_Dimanche') => ({
         count: lots.reduce((s, l) => s + l[field], 0),
@@ -252,17 +251,16 @@ function TiragePageInner() {
       });
       setLotStats({ samedi: calc('Nb_Samedi'), dimanche: calc('Nb_Dimanche') });
     }).catch(() => { /* silencieux — les boutons affichent '…' */ });
-  }, [router]);
 
-  // Auto-sélection du jour depuis le paramètre URL ?jour=samedi|dimanche
-  useEffect(() => {
-    if (autoSelectedRef.current) return;
     const jour = searchParams.get('jour');
-    if (jour !== 'samedi' && jour !== 'dimanche') return;
-    autoSelectedRef.current = true;
-    handleSelectDay(jour);
+    if (jour === 'samedi' || jour === 'dimanche') {
+      // Auto-sélection depuis l'URL : state reste null (= "Chargement…") jusqu'à la fin du fetch
+      handleSelectDay(jour);
+    } else {
+      setState({ day: null, initialized: false, pendingNumber: null, tickets: [] });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, []);
 
   const refreshState = useCallback(async (day: 'samedi' | 'dimanche') => {
     const tickets = await fetchTirageSession(sessionKey(day));
